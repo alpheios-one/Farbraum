@@ -12,11 +12,13 @@ gleichmässig über den Farbkreis verteilt.
 
 - **Farbwähler**: Farbrad (Hue als Winkel, Sättigung als Radius) plus
   horizontaler Helligkeits-Schieberegler
-- Eingabefelder für R, G, B, Alpha sowie den Hex-Code
+- Eingabefelder für R, G, B, Alpha, den Hex-Code, HCL (Hue, Chroma,
+  Luminance) sowie HSL (Hue, Saturation, Lightness) – alle Eingaben sind
+  vollständig miteinander synchronisiert
 - Slider zur Auswahl der Anzahl Paletten-Farben (2–12)
-- Für jede Paletten-Farbe: Swatch, Hex-Code, RGB-Code und HCL-Wert
-  (Hue, Chroma, Luminance im CIE-LCh-Farbraum), jeweils per Klick in die
-  Zwischenablage kopierbar
+- Für jede Paletten-Farbe: Swatch, Hex-Code, RGB-Code, HCL-Wert
+  (Hue, Chroma, Luminance im CIE-LCh-Farbraum) und HSL-Wert (Hue, Saturation,
+  Lightness), jeweils per Klick in die Zwischenablage kopierbar
 
 ## Screenshot
 

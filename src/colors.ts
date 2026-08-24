@@ -137,6 +137,11 @@ export function rgbToCss({ r, g, b }: Rgb): string {
   return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
 }
 
+/** Formatiert HSL als CSS-hsl()-String. */
+export function hslToCss({ h, s, l }: Hsl): string {
+  return `hsl(${Math.round(h)}, ${Math.round(s)}%, ${Math.round(l)}%)`;
+}
+
 export interface Hcl {
   h: number; // 0-360 (0 bei achromatischen Farben)
   c: number; // Chroma, >= 0
