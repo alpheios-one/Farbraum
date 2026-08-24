@@ -146,7 +146,8 @@ input[type="range"]::-moz-range-thumb {
   grid-template-columns: 1fr;
 }
 
-.fields.hcl-row {
+.fields.hcl-row,
+.fields.hsl-row {
   grid-template-columns: repeat(3, 1fr);
 }
 

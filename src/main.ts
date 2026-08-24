@@ -5,6 +5,7 @@ import {
   hclToCss,
   hclToRgb,
   hexToRgb,
+  hslToCss,
   hslToRgb,
   isHclInGamut,
   normalizeHue,
@@ -57,6 +58,11 @@ app.innerHTML = `
           <label>C <input type="number" id="field-c" min="0" max="150" /></label>
           <label>L <input type="number" id="field-l" min="0" max="100" /></label>
         </div>
+        <div class="fields hsl-row">
+          <label>H <input type="number" id="field-hsl-h" min="0" max="360" /></label>
+          <label>S <input type="number" id="field-hsl-s" min="0" max="100" /></label>
+          <label>L <input type="number" id="field-hsl-l" min="0" max="100" /></label>
+        </div>
         <div class="preview">
           <div class="preview-fill" id="preview-fill"></div>
         </div>
@@ -80,7 +86,7 @@ app.innerHTML = `
         <section class="palette" id="palette"></section>
       </div>
     </main>
-    <footer>Klicke auf Hex-, RGB- oder HCL-Code, um ihn in die Zwischenablage zu kopieren.</footer>
+    <footer>Klicke auf Hex-, RGB-, HCL- oder HSL-Code, um ihn in die Zwischenablage zu kopieren.</footer>
   </div>
 `;
 
@@ -95,6 +101,9 @@ const fieldHex = document.querySelector<HTMLInputElement>("#field-hex")!;
 const fieldH = document.querySelector<HTMLInputElement>("#field-h")!;
 const fieldC = document.querySelector<HTMLInputElement>("#field-c")!;
 const fieldL = document.querySelector<HTMLInputElement>("#field-l")!;
+const fieldHslH = document.querySelector<HTMLInputElement>("#field-hsl-h")!;
+const fieldHslS = document.querySelector<HTMLInputElement>("#field-hsl-s")!;
+const fieldHslL = document.querySelector<HTMLInputElement>("#field-hsl-l")!;
 const previewFill = document.querySelector<HTMLDivElement>("#preview-fill")!;
 const countInput = document.querySelector<HTMLInputElement>("#count")!;
 const countNumberInput = document.querySelector<HTMLInputElement>("#count-input")!;
@@ -185,6 +194,10 @@ function render(): void {
   fieldL.value = String(Math.round(hcl.l));
   setHclGamutWarning(false);
 
+  fieldHslH.value = String(Math.round(state.h));
+  fieldHslS.value = String(Math.round(state.s));
+  fieldHslL.value = String(Math.round(state.l));
+
   lightnessInput.value = String(Math.round(state.l));
   const hueRgbLow = rgbToHex(hslToRgb({ h: state.h, s: state.s, l: 0 }));
   const hueRgbMid = rgbToHex(hslToRgb({ h: state.h, s: state.s, l: 50 }));
@@ -232,7 +245,14 @@ function renderPalette(): void {
     hclButton.textContent = hclCss;
     hclButton.addEventListener("click", () => copyToClipboard(hclCss, hclButton));
 
-    info.append(hexButton, rgbButton, hclButton);
+    const hslCss = hslToCss(color.hsl);
+    const hslButton = document.createElement("button");
+    hslButton.className = "swatch-code";
+    hslButton.type = "button";
+    hslButton.textContent = hslCss;
+    hslButton.addEventListener("click", () => copyToClipboard(hslCss, hslButton));
+
+    info.append(hexButton, rgbButton, hclButton, hslButton);
     card.append(swatchColor, info);
     paletteEl.append(card);
   }
@@ -325,6 +345,18 @@ function readHclFields(): void {
 fieldH.addEventListener("change", readHclFields);
 fieldC.addEventListener("change", readHclFields);
 fieldL.addEventListener("change", readHclFields);
+
+function readHslFields(): void {
+  const hsl: Hsl = {
+    h: normalizeHue(Number(fieldHslH.value)),
+    s: clamp(Number(fieldHslS.value), 0, 100),
+    l: clamp(Number(fieldHslL.value), 0, 100),
+  };
+  setFromHsl(hsl);
+}
+fieldHslH.addEventListener("change", readHslFields);
+fieldHslS.addEventListener("change", readHslFields);
+fieldHslL.addEventListener("change", readHslFields);
 
 function applyCount(value: number): void {
   state.count = clamp(Math.round(value), COUNT_MIN, COUNT_MAX);

@@ -5,6 +5,7 @@ import {
   hclToCss,
   hclToRgb,
   hexToRgb,
+  hslToCss,
   hslToHex,
   hslToRgb,
   isHclInGamut,
@@ -112,6 +113,13 @@ describe("rgbToCss", () => {
   it("formatiert RGB als CSS rgb()-String", () => {
     expect(rgbToCss({ r: 255, g: 0, b: 0 })).toBe("rgb(255, 0, 0)");
     expect(rgbToCss({ r: 12.4, g: 0, b: 200.6 })).toBe("rgb(12, 0, 201)");
+  });
+});
+
+describe("hslToCss", () => {
+  it("formatiert HSL als CSS hsl()-String", () => {
+    expect(hslToCss({ h: 0, s: 100, l: 50 })).toBe("hsl(0, 100%, 50%)");
+    expect(hslToCss({ h: 210.4, s: 45.2, l: 61.9 })).toBe("hsl(210, 45%, 62%)");
   });
 });
 
