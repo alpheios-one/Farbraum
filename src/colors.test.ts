@@ -7,11 +7,13 @@ import {
   hexToRgb,
   hslToHex,
   hslToRgb,
+  isHclInGamut,
   normalizeHue,
   rgbToCss,
   rgbToHcl,
   rgbToHex,
   rgbToHsl,
+  type Hcl,
 } from "./colors";
 
 describe("clamp", () => {
@@ -164,6 +166,42 @@ describe("rgbToHcl / hclToRgb", () => {
       expect(roundTripped.g).toBeCloseTo(rgb.g, 0);
       expect(roundTripped.b).toBeCloseTo(rgb.b, 0);
     }
+  });
+});
+
+describe("isHclInGamut", () => {
+  it("erkennt Farben von bekannten RGB-Werten als darstellbar", () => {
+    const samples: Array<{ r: number; g: number; b: number }> = [
+      { r: 255, g: 0, b: 0 },
+      { r: 0, g: 255, b: 0 },
+      { r: 0, g: 0, b: 255 },
+      { r: 18, g: 52, b: 86 },
+      { r: 128, g: 128, b: 128 },
+      { r: 0, g: 0, b: 0 },
+      { r: 255, g: 255, b: 255 },
+    ];
+
+    for (const rgb of samples) {
+      expect(isHclInGamut(rgbToHcl(rgb))).toBe(true);
+    }
+  });
+
+  it("erkennt nicht darstellbare HCL-Kombinationen (zu hohes Chroma)", () => {
+    expect(isHclInGamut({ h: 0, c: 500, l: 50 })).toBe(false);
+    expect(isHclInGamut({ h: 120, c: 300, l: 90 })).toBe(false);
+  });
+
+  it("clamped hclToRgb liefert für nicht darstellbare Kombinationen einen gültigen RGB-Wert", () => {
+    const outOfGamut: Hcl = { h: 0, c: 500, l: 50 };
+    expect(isHclInGamut(outOfGamut)).toBe(false);
+
+    const rgb = hclToRgb(outOfGamut);
+    expect(rgb.r).toBeGreaterThanOrEqual(0);
+    expect(rgb.r).toBeLessThanOrEqual(255);
+    expect(rgb.g).toBeGreaterThanOrEqual(0);
+    expect(rgb.g).toBeLessThanOrEqual(255);
+    expect(rgb.b).toBeGreaterThanOrEqual(0);
+    expect(rgb.b).toBeLessThanOrEqual(255);
   });
 });
 

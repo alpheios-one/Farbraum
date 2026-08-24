@@ -3,12 +3,16 @@ import {
   clamp,
   generatePalette,
   hclToCss,
+  hclToRgb,
   hexToRgb,
   hslToRgb,
+  isHclInGamut,
   normalizeHue,
   rgbToCss,
+  rgbToHcl,
   rgbToHex,
   rgbToHsl,
+  type Hcl,
   type Hsl,
 } from "./colors";
 
@@ -48,6 +52,11 @@ app.innerHTML = `
         <div class="fields hex-row">
           <label>Hex <input type="text" id="field-hex" maxlength="7" /></label>
         </div>
+        <div class="fields hcl-row">
+          <label>H <input type="number" id="field-h" min="0" max="360" /></label>
+          <label>C <input type="number" id="field-c" min="0" max="150" /></label>
+          <label>L <input type="number" id="field-l" min="0" max="100" /></label>
+        </div>
         <div class="preview">
           <div class="preview-fill" id="preview-fill"></div>
         </div>
@@ -83,6 +92,9 @@ const fieldG = document.querySelector<HTMLInputElement>("#field-g")!;
 const fieldB = document.querySelector<HTMLInputElement>("#field-b")!;
 const fieldA = document.querySelector<HTMLInputElement>("#field-a")!;
 const fieldHex = document.querySelector<HTMLInputElement>("#field-hex")!;
+const fieldH = document.querySelector<HTMLInputElement>("#field-h")!;
+const fieldC = document.querySelector<HTMLInputElement>("#field-c")!;
+const fieldL = document.querySelector<HTMLInputElement>("#field-l")!;
 const previewFill = document.querySelector<HTMLDivElement>("#preview-fill")!;
 const countInput = document.querySelector<HTMLInputElement>("#count")!;
 const countNumberInput = document.querySelector<HTMLInputElement>("#count-input")!;
@@ -151,15 +163,27 @@ function updateWheelHandle(): void {
   wheelHandle.style.top = `${y}px`;
 }
 
+function setHclGamutWarning(active: boolean): void {
+  fieldH.classList.toggle("invalid", active);
+  fieldC.classList.toggle("invalid", active);
+  fieldL.classList.toggle("invalid", active);
+}
+
 function render(): void {
   const rgb = hslToRgb(currentHsl());
   const hex = rgbToHex(rgb);
+  const hcl = rgbToHcl(rgb);
 
   fieldR.value = String(rgb.r);
   fieldG.value = String(rgb.g);
   fieldB.value = String(rgb.b);
   fieldA.value = state.a.toFixed(2);
   fieldHex.value = hex;
+
+  fieldH.value = String(Math.round(hcl.h));
+  fieldC.value = String(Math.round(hcl.c));
+  fieldL.value = String(Math.round(hcl.l));
+  setHclGamutWarning(false);
 
   lightnessInput.value = String(Math.round(state.l));
   const hueRgbLow = rgbToHex(hslToRgb({ h: state.h, s: state.s, l: 0 }));
@@ -286,6 +310,21 @@ fieldHex.addEventListener("change", () => {
     fieldHex.value = rgbToHex(hslToRgb(currentHsl()));
   }
 });
+
+function readHclFields(): void {
+  const hcl: Hcl = {
+    h: normalizeHue(Number(fieldH.value)),
+    c: Math.max(0, Number(fieldC.value)),
+    l: clamp(Number(fieldL.value), 0, 100),
+  };
+  const outOfGamut = !isHclInGamut(hcl);
+  const rgb = hclToRgb(hcl);
+  setFromRgb(rgb.r, rgb.g, rgb.b);
+  setHclGamutWarning(outOfGamut);
+}
+fieldH.addEventListener("change", readHclFields);
+fieldC.addEventListener("change", readHclFields);
+fieldL.addEventListener("change", readHclFields);
 
 function applyCount(value: number): void {
   state.count = clamp(Math.round(value), COUNT_MIN, COUNT_MAX);
