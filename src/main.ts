@@ -55,12 +55,12 @@ app.innerHTML = `
         <section class="palette-controls">
           <label for="count">Anzahl Farben</label>
           <div class="count-controls">
-            <input type="range" id="count" min="2" max="12" value="5" />
+            <input type="range" id="count" min="2" max="50" value="5" />
             <input
               type="number"
               id="count-input"
               min="2"
-              max="12"
+              max="50"
               step="1"
               value="5"
               aria-label="Anzahl Farben (manuelle Eingabe)"
