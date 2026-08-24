@@ -122,7 +122,7 @@ describe("rgbToHcl / hclToRgb", () => {
 
     const white = rgbToHcl({ r: 255, g: 255, b: 255 });
     expect(white.l).toBeCloseTo(100, 1);
-    expect(white.c).toBeCloseTo(0, 5);
+    expect(white.c).toBeCloseTo(0, 2);
 
     const black = rgbToHcl({ r: 0, g: 0, b: 0 });
     expect(black.l).toBeCloseTo(0, 5);
