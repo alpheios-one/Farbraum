@@ -30,3 +30,18 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: "--append-system-prompt 'Antworte in allen Kommentaren und Pull-Request-Beschreibungen ausschliesslich auf Deutsch.'"
+
+      - name: Bei Fehler Kommentar ins Issue schreiben
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = context.issue.number || context.payload.issue?.number;
+            if (!issue_number) return;
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue_number,
+              body: `⚠️ **Claude ist bei der Bearbeitung dieses Issues abgebrochen.**\n\nDer Lauf ist fehlgeschlagen. Details zum Fehler findest du im Log:\n${runUrl}\n\nBitte prüfe die Konfiguration oder kommentiere erneut mit @claude, sobald das Problem behoben ist.`
+            });
