@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   clamp,
   generatePalette,
+  hclToCss,
+  hclToRgb,
   hexToRgb,
   hslToHex,
   hslToRgb,
   normalizeHue,
   rgbToCss,
+  rgbToHcl,
   rgbToHex,
   rgbToHsl,
 } from "./colors";
@@ -110,6 +113,66 @@ describe("rgbToCss", () => {
   });
 });
 
+describe("rgbToHcl / hclToRgb", () => {
+  it("berechnet HCL für bekannte Grundfarben korrekt (D65-Referenzwerte)", () => {
+    const red = rgbToHcl({ r: 255, g: 0, b: 0 });
+    expect(red.l).toBeCloseTo(53.24, 1);
+    expect(red.c).toBeCloseTo(104.55, 1);
+    expect(red.h).toBeCloseTo(40, 0);
+
+    const white = rgbToHcl({ r: 255, g: 255, b: 255 });
+    expect(white.l).toBeCloseTo(100, 1);
+    expect(white.c).toBeCloseTo(0, 2);
+
+    const black = rgbToHcl({ r: 0, g: 0, b: 0 });
+    expect(black.l).toBeCloseTo(0, 5);
+    expect(black.c).toBeCloseTo(0, 5);
+  });
+
+  it("liefert für achromatische Grautöne ein Chroma von ~0", () => {
+    const grays: Array<{ r: number; g: number; b: number }> = [
+      { r: 0, g: 0, b: 0 },
+      { r: 64, g: 64, b: 64 },
+      { r: 128, g: 128, b: 128 },
+      { r: 200, g: 200, b: 200 },
+      { r: 255, g: 255, b: 255 },
+    ];
+
+    for (const rgb of grays) {
+      const hcl = rgbToHcl(rgb);
+      expect(hcl.c).toBeCloseTo(0, 4);
+    }
+  });
+
+  it("ist zueinander invers (Hin- und Rückumrechnung, mit Rundungstoleranz)", () => {
+    const samples: Array<{ r: number; g: number; b: number }> = [
+      { r: 255, g: 0, b: 0 },
+      { r: 0, g: 255, b: 0 },
+      { r: 0, g: 0, b: 255 },
+      { r: 18, g: 52, b: 86 },
+      { r: 200, g: 100, b: 50 },
+      { r: 10, g: 200, b: 210 },
+      { r: 128, g: 128, b: 128 },
+      { r: 255, g: 255, b: 255 },
+      { r: 0, g: 0, b: 0 },
+    ];
+
+    for (const rgb of samples) {
+      const hcl = rgbToHcl(rgb);
+      const roundTripped = hclToRgb(hcl);
+      expect(roundTripped.r).toBeCloseTo(rgb.r, 0);
+      expect(roundTripped.g).toBeCloseTo(rgb.g, 0);
+      expect(roundTripped.b).toBeCloseTo(rgb.b, 0);
+    }
+  });
+});
+
+describe("hclToCss", () => {
+  it("formatiert HCL als hcl()-String", () => {
+    expect(hclToCss({ h: 210.4, c: 45.2, l: 61.9 })).toBe("hcl(210, 45, 62)");
+  });
+});
+
 describe("generatePalette", () => {
   const base = { h: 200, s: 60, l: 50 };
 
@@ -142,6 +205,13 @@ describe("generatePalette", () => {
     const palette = generatePalette(base, 4);
     expect(palette[0].hue).toBeCloseTo(base.h, 5);
     expect(palette[0].hex).toBe(hslToHex(base));
+  });
+
+  it("jede Farbe enthält den passenden HCL-Wert", () => {
+    const palette = generatePalette(base, 4);
+    for (const color of palette) {
+      expect(color.hcl).toEqual(rgbToHcl(color.rgb));
+    }
   });
 
   it("Edge Case N = 1: liefert nur die Grundfarbe", () => {
