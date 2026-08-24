@@ -53,11 +53,19 @@ app.innerHTML = `
       </section>
       <div>
         <section class="palette-controls">
-          <label for="count">
-            Anzahl Farben
-            <span id="count-value">5</span>
-          </label>
-          <input type="range" id="count" min="2" max="12" value="5" />
+          <label for="count">Anzahl Farben</label>
+          <div class="count-controls">
+            <input type="range" id="count" min="2" max="50" value="5" />
+            <input
+              type="number"
+              id="count-input"
+              min="2"
+              max="50"
+              step="1"
+              value="5"
+              aria-label="Anzahl Farben (manuelle Eingabe)"
+            />
+          </div>
         </section>
         <section class="palette" id="palette"></section>
       </div>
@@ -76,8 +84,11 @@ const fieldA = document.querySelector<HTMLInputElement>("#field-a")!;
 const fieldHex = document.querySelector<HTMLInputElement>("#field-hex")!;
 const previewFill = document.querySelector<HTMLDivElement>("#preview-fill")!;
 const countInput = document.querySelector<HTMLInputElement>("#count")!;
-const countValue = document.querySelector<HTMLSpanElement>("#count-value")!;
+const countNumberInput = document.querySelector<HTMLInputElement>("#count-input")!;
 const paletteEl = document.querySelector<HTMLDivElement>("#palette")!;
+
+const COUNT_MIN = Number(countInput.min);
+const COUNT_MAX = Number(countInput.max);
 
 const wheelCtx = wheelCanvas.getContext("2d")!;
 const wheelRadius = wheelCanvas.width / 2;
@@ -268,13 +279,38 @@ fieldHex.addEventListener("change", () => {
   }
 });
 
+function applyCount(value: number): void {
+  state.count = clamp(Math.round(value), COUNT_MIN, COUNT_MAX);
+  countInput.value = String(state.count);
+  countNumberInput.value = String(state.count);
+  countNumberInput.classList.remove("invalid");
+  renderPalette();
+}
+
 countInput.addEventListener("input", () => {
-  state.count = Number(countInput.value);
-  countValue.textContent = String(state.count);
+  applyCount(Number(countInput.value));
+});
+
+countNumberInput.addEventListener("input", () => {
+  const raw = countNumberInput.value;
+  const value = Number(raw);
+
+  if (raw.trim() === "" || Number.isNaN(value)) {
+    countNumberInput.classList.add("invalid");
+    return;
+  }
+
+  countNumberInput.classList.remove("invalid");
+  state.count = clamp(Math.round(value), COUNT_MIN, COUNT_MAX);
+  countInput.value = String(state.count);
   renderPalette();
 });
 
+countNumberInput.addEventListener("change", () => {
+  const value = Number(countNumberInput.value);
+  applyCount(Number.isNaN(value) ? state.count : value);
+});
+
 drawWheel();
-countValue.textContent = String(state.count);
-countInput.value = String(state.count);
+applyCount(state.count);
 render();
