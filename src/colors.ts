@@ -175,8 +175,12 @@ export function rgbToXyz({ r, g, b }: Rgb): { x: number; y: number; z: number } 
   };
 }
 
-/** Wandelt CIE XYZ (D65-Weisspunkt) in RGB (0-255) um. */
-export function xyzToRgb({ x, y, z }: { x: number; y: number; z: number }): Rgb {
+/** Wandelt CIE XYZ (D65-Weisspunkt) in ungeclampte, gammakorrigierte sRGB-Kanäle (~0-255) um. */
+function xyzToSrgbChannels({ x, y, z }: { x: number; y: number; z: number }): {
+  r: number;
+  g: number;
+  b: number;
+} {
   const xNorm = x / 100;
   const yNorm = y / 100;
   const zNorm = z / 100;
@@ -186,9 +190,19 @@ export function xyzToRgb({ x, y, z }: { x: number; y: number; z: number }): Rgb 
   const bLin = xNorm * 0.0556434 + yNorm * -0.2040259 + zNorm * 1.0572252;
 
   return {
-    r: clamp(Math.round(linearToSrgbChannel(rLin) * 255), 0, 255),
-    g: clamp(Math.round(linearToSrgbChannel(gLin) * 255), 0, 255),
-    b: clamp(Math.round(linearToSrgbChannel(bLin) * 255), 0, 255),
+    r: linearToSrgbChannel(rLin) * 255,
+    g: linearToSrgbChannel(gLin) * 255,
+    b: linearToSrgbChannel(bLin) * 255,
+  };
+}
+
+/** Wandelt CIE XYZ (D65-Weisspunkt) in RGB (0-255) um. */
+export function xyzToRgb(xyz: { x: number; y: number; z: number }): Rgb {
+  const { r, g, b } = xyzToSrgbChannels(xyz);
+  return {
+    r: clamp(Math.round(r), 0, 255),
+    g: clamp(Math.round(g), 0, 255),
+    b: clamp(Math.round(b), 0, 255),
   };
 }
 
@@ -259,6 +273,29 @@ export function hclToRgb({ h, c, l }: Hcl): Rgb {
 /** Formatiert HCL als CSS-artigen hcl()-String. */
 export function hclToCss({ h, c, l }: Hcl): string {
   return `hcl(${Math.round(h)}, ${Math.round(c)}, ${Math.round(l)})`;
+}
+
+// Toleranz in RGB-Einheiten für die Gamut-Prüfung (fängt Rundungsfehler ab).
+const GAMUT_EPSILON = 0.5;
+
+/**
+ * Prüft, ob eine HCL-Farbe innerhalb des sRGB-Gamuts liegt, d.h. ob sie ohne
+ * Clamping der einzelnen Kanäle exakt als RGB darstellbar ist.
+ */
+export function isHclInGamut({ h, c, l }: Hcl): boolean {
+  const hRad = (normalizeHue(h) * Math.PI) / 180;
+  const a = c * Math.cos(hRad);
+  const bLab = c * Math.sin(hRad);
+  const { r, g, b } = xyzToSrgbChannels(labToXyz({ l, a, b: bLab }));
+
+  return (
+    r >= -GAMUT_EPSILON &&
+    r <= 255 + GAMUT_EPSILON &&
+    g >= -GAMUT_EPSILON &&
+    g <= 255 + GAMUT_EPSILON &&
+    b >= -GAMUT_EPSILON &&
+    b <= 255 + GAMUT_EPSILON
+  );
 }
 
 export interface PaletteColor {

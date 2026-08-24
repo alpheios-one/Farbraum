@@ -146,6 +146,10 @@ input[type="range"]::-moz-range-thumb {
   grid-template-columns: 1fr;
 }
 
+.fields.hcl-row {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 .fields label {
   display: flex;
   flex-direction: column;
@@ -166,6 +170,12 @@ input[type="range"]::-moz-range-thumb {
 
 .fields input:focus {
   outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.fields input.invalid {
+  border-color: #e05252;
+  outline: 2px solid #e05252;
   outline-offset: 1px;
 }
 
