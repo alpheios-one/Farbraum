@@ -1,4 +1,5 @@
 name: Claude Code
+
 on:
   issue_comment:
     types: [created]
@@ -15,6 +16,8 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+      id-token: write
+
     steps:
       - uses: anthropics/claude-code-action@v1
         with:
