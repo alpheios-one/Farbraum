@@ -14,7 +14,8 @@ gleichmässig über den Farbkreis verteilt.
   horizontaler Helligkeits-Schieberegler
 - Eingabefelder für R, G, B, Alpha sowie den Hex-Code
 - Slider zur Auswahl der Anzahl Paletten-Farben (2–12)
-- Für jede Paletten-Farbe: Swatch, Hex-Code und RGB-Code, per Klick in die
+- Für jede Paletten-Farbe: Swatch, Hex-Code, RGB-Code und HCL-Wert
+  (Hue, Chroma, Luminance im CIE-LCh-Farbraum), jeweils per Klick in die
   Zwischenablage kopierbar
 
 ## Screenshot
@@ -25,9 +26,10 @@ gleichmässig über den Farbkreis verteilt.
 ## Technik
 
 - [Vite](https://vitejs.dev/) + TypeScript, kein Backend nötig
-- Die Farbumrechnungen (HSL ⇄ RGB ⇄ Hex) und die Palettenberechnung sind als
-  reine Funktionen in [`src/colors.ts`](./src/colors.ts) implementiert – ohne
-  DOM-Zugriff, dadurch gut isoliert testbar
+- Die Farbumrechnungen (HSL ⇄ RGB ⇄ Hex ⇄ HCL/CIE LCh, über den Zwischenschritt
+  CIE XYZ → CIE Lab) und die Palettenberechnung sind als reine Funktionen in
+  [`src/colors.ts`](./src/colors.ts) implementiert – ohne DOM-Zugriff, dadurch
+  gut isoliert testbar
 - [Vitest](https://vitest.dev/) für Unit-Tests ([`src/colors.test.ts`](./src/colors.test.ts))
 
 ## Lokal starten
@@ -49,6 +51,8 @@ npm test
 Die Tests decken unter anderem ab:
 
 - HSL ⇄ RGB ⇄ Hex Umrechnung (inkl. Rundung)
+- RGB ⇄ HCL (CIE LCh) Umrechnung anhand bekannter Referenzwerte
+  (Rot, Weiss, Schwarz, Grau) sowie Hin- und Rückumrechnung
 - Palette mit N Farben hat exakt N Einträge
 - Alle Paletten-Farben haben dieselbe Sättigung/Helligkeit wie die Grundfarbe
 - Hue-Abstand zwischen benachbarten Paletten-Farben entspricht 360° / N

@@ -2,6 +2,7 @@ import "./style.css";
 import {
   clamp,
   generatePalette,
+  hclToCss,
   hexToRgb,
   hslToRgb,
   normalizeHue,
@@ -70,7 +71,7 @@ app.innerHTML = `
         <section class="palette" id="palette"></section>
       </div>
     </main>
-    <footer>Klicke auf Hex- oder RGB-Code, um ihn in die Zwischenablage zu kopieren.</footer>
+    <footer>Klicke auf Hex-, RGB- oder HCL-Code, um ihn in die Zwischenablage zu kopieren.</footer>
   </div>
 `;
 
@@ -200,7 +201,14 @@ function renderPalette(): void {
     rgbButton.textContent = rgbCss;
     rgbButton.addEventListener("click", () => copyToClipboard(rgbCss, rgbButton));
 
-    info.append(hexButton, rgbButton);
+    const hclCss = hclToCss(color.hcl);
+    const hclButton = document.createElement("button");
+    hclButton.className = "swatch-code";
+    hclButton.type = "button";
+    hclButton.textContent = hclCss;
+    hclButton.addEventListener("click", () => copyToClipboard(hclCss, hclButton));
+
+    info.append(hexButton, rgbButton, hclButton);
     card.append(swatchColor, info);
     paletteEl.append(card);
   }

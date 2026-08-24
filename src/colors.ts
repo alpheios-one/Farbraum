@@ -1,5 +1,5 @@
 /**
- * Reine Farbfunktionen (HSL ⇄ RGB ⇄ Hex, Palettenberechnung).
+ * Reine Farbfunktionen (HSL ⇄ RGB ⇄ Hex ⇄ HCL/CIE LCh, Palettenberechnung).
  * Enthält bewusst keinen DOM-Zugriff, damit sich alles isoliert testen lässt.
  */
 
@@ -137,11 +137,136 @@ export function rgbToCss({ r, g, b }: Rgb): string {
   return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
 }
 
+export interface Hcl {
+  h: number; // 0-360 (0 bei achromatischen Farben)
+  c: number; // Chroma, >= 0
+  l: number; // Luminance, 0-100
+}
+
+// D65-Referenzweiss (CIE-Normalbeobachter, 2°).
+const D65_XN = 95.047;
+const D65_YN = 100;
+const D65_ZN = 108.883;
+
+/** Wandelt einen linearisierten sRGB-Kanal (0-1) in seinen Gamma-korrigierten Wert um. */
+function linearToSrgbChannel(channel: number): number {
+  return channel <= 0.0031308
+    ? 12.92 * channel
+    : 1.055 * Math.pow(channel, 1 / 2.4) - 0.055;
+}
+
+/** Wandelt einen Gamma-korrigierten sRGB-Kanal (0-1) in seinen linearisierten Wert um. */
+function srgbToLinearChannel(channel: number): number {
+  return channel <= 0.04045
+    ? channel / 12.92
+    : Math.pow((channel + 0.055) / 1.055, 2.4);
+}
+
+/** Wandelt RGB (0-255) in CIE XYZ um (D65-Weisspunkt). */
+export function rgbToXyz({ r, g, b }: Rgb): { x: number; y: number; z: number } {
+  const rLin = srgbToLinearChannel(r / 255);
+  const gLin = srgbToLinearChannel(g / 255);
+  const bLin = srgbToLinearChannel(b / 255);
+
+  return {
+    x: (rLin * 0.4124564 + gLin * 0.3575761 + bLin * 0.1804375) * 100,
+    y: (rLin * 0.2126729 + gLin * 0.7151522 + bLin * 0.072175) * 100,
+    z: (rLin * 0.0193339 + gLin * 0.119192 + bLin * 0.9503041) * 100,
+  };
+}
+
+/** Wandelt CIE XYZ (D65-Weisspunkt) in RGB (0-255) um. */
+export function xyzToRgb({ x, y, z }: { x: number; y: number; z: number }): Rgb {
+  const xNorm = x / 100;
+  const yNorm = y / 100;
+  const zNorm = z / 100;
+
+  const rLin = xNorm * 3.2404542 + yNorm * -1.5371385 + zNorm * -0.4985314;
+  const gLin = xNorm * -0.969266 + yNorm * 1.8760108 + zNorm * 0.041556;
+  const bLin = xNorm * 0.0556434 + yNorm * -0.2040259 + zNorm * 1.0572252;
+
+  return {
+    r: clamp(Math.round(linearToSrgbChannel(rLin) * 255), 0, 255),
+    g: clamp(Math.round(linearToSrgbChannel(gLin) * 255), 0, 255),
+    b: clamp(Math.round(linearToSrgbChannel(bLin) * 255), 0, 255),
+  };
+}
+
+const LAB_EPSILON = 216 / 24389;
+const LAB_KAPPA = 24389 / 27;
+
+function labPivotForward(t: number): number {
+  return t > LAB_EPSILON ? Math.cbrt(t) : (LAB_KAPPA * t + 16) / 116;
+}
+
+function labPivotInverse(t: number): number {
+  const t3 = t * t * t;
+  return t3 > LAB_EPSILON ? t3 : (116 * t - 16) / LAB_KAPPA;
+}
+
+/** Wandelt CIE XYZ (D65-Weisspunkt) in CIE Lab um. */
+export function xyzToLab({ x, y, z }: { x: number; y: number; z: number }): {
+  l: number;
+  a: number;
+  b: number;
+} {
+  const fx = labPivotForward(x / D65_XN);
+  const fy = labPivotForward(y / D65_YN);
+  const fz = labPivotForward(z / D65_ZN);
+
+  return {
+    l: 116 * fy - 16,
+    a: 500 * (fx - fy),
+    b: 200 * (fy - fz),
+  };
+}
+
+/** Wandelt CIE Lab in CIE XYZ (D65-Weisspunkt) um. */
+export function labToXyz({ l, a, b }: { l: number; a: number; b: number }): {
+  x: number;
+  y: number;
+  z: number;
+} {
+  const fy = (l + 16) / 116;
+  const fx = fy + a / 500;
+  const fz = fy - b / 200;
+
+  return {
+    x: labPivotInverse(fx) * D65_XN,
+    y: labPivotInverse(fy) * D65_YN,
+    z: labPivotInverse(fz) * D65_ZN,
+  };
+}
+
+/** Wandelt RGB (0-255) in HCL um (CIE LCh: h 0-360, c >= 0, l 0-100). */
+export function rgbToHcl(rgb: Rgb): Hcl {
+  const { l, a, b } = xyzToLab(rgbToXyz(rgb));
+  const c = Math.sqrt(a * a + b * b);
+  const h = c < 1e-7 ? 0 : normalizeHue((Math.atan2(b, a) * 180) / Math.PI);
+
+  return { h, c, l };
+}
+
+/** Wandelt HCL (CIE LCh: h 0-360, c >= 0, l 0-100) in RGB (0-255) um. */
+export function hclToRgb({ h, c, l }: Hcl): Rgb {
+  const hRad = (normalizeHue(h) * Math.PI) / 180;
+  const a = c * Math.cos(hRad);
+  const b = c * Math.sin(hRad);
+
+  return xyzToRgb(labToXyz({ l, a, b }));
+}
+
+/** Formatiert HCL als CSS-artigen hcl()-String. */
+export function hclToCss({ h, c, l }: Hcl): string {
+  return `hcl(${Math.round(h)}, ${Math.round(c)}, ${Math.round(l)})`;
+}
+
 export interface PaletteColor {
   hue: number;
   hsl: Hsl;
   rgb: Rgb;
   hex: string;
+  hcl: Hcl;
 }
 
 /**
@@ -163,6 +288,7 @@ export function generatePalette(base: Hsl, count: number): PaletteColor[] {
       hsl,
       rgb,
       hex: rgbToHex(rgb),
+      hcl: rgbToHcl(rgb),
     };
   });
 }
