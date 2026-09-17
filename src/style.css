@@ -46,7 +46,7 @@ header p {
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(260px, 340px) 1fr;
+  grid-template-columns: minmax(260px, 480px) 1fr;
   gap: 2rem;
   align-items: start;
 }
@@ -67,17 +67,59 @@ header p {
   gap: 1.25rem;
 }
 
+.wheel-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.saturation-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  height: 332px;
+  flex: none;
+}
+
+.saturation-col label {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.saturation-col input[type="range"] {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 14px;
+  flex: 1;
+}
+
 .wheel-wrap {
   position: relative;
-  width: 260px;
-  height: 260px;
+  width: 332px;
+  height: 332px;
   margin: 0 auto;
+  flex: none;
 }
 
 .wheel-wrap canvas {
+  position: absolute;
   border-radius: 50%;
   cursor: crosshair;
   touch-action: none;
+}
+
+#hue-ring {
+  top: 0;
+  left: 0;
+}
+
+#wheel {
+  top: 36px;
+  left: 36px;
+  clip-path: circle(50%);
 }
 
 .handle {

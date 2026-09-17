@@ -36,9 +36,17 @@ app.innerHTML = `
     </header>
     <main class="layout">
       <section class="picker">
-        <div class="wheel-wrap">
-          <canvas id="wheel" width="260" height="260"></canvas>
-          <div id="wheel-handle" class="handle"></div>
+        <div class="wheel-row">
+          <div class="saturation-col">
+            <label for="saturation">Sättigung</label>
+            <input type="range" id="saturation" min="0" max="100" value="70" />
+          </div>
+          <div class="wheel-wrap">
+            <canvas id="hue-ring" width="332" height="332"></canvas>
+            <canvas id="wheel" width="260" height="260"></canvas>
+            <div id="ring-handle" class="handle"></div>
+            <div id="wheel-handle" class="handle"></div>
+          </div>
         </div>
         <div class="lightness-row">
           <label for="lightness">Helligkeit</label>
@@ -90,8 +98,11 @@ app.innerHTML = `
   </div>
 `;
 
+const hueRingCanvas = document.querySelector<HTMLCanvasElement>("#hue-ring")!;
+const ringHandle = document.querySelector<HTMLDivElement>("#ring-handle")!;
 const wheelCanvas = document.querySelector<HTMLCanvasElement>("#wheel")!;
 const wheelHandle = document.querySelector<HTMLDivElement>("#wheel-handle")!;
+const saturationInput = document.querySelector<HTMLInputElement>("#saturation")!;
 const lightnessInput = document.querySelector<HTMLInputElement>("#lightness")!;
 const fieldR = document.querySelector<HTMLInputElement>("#field-r")!;
 const fieldG = document.querySelector<HTMLInputElement>("#field-g")!;
@@ -112,8 +123,57 @@ const paletteEl = document.querySelector<HTMLDivElement>("#palette")!;
 const COUNT_MIN = Number(countInput.min);
 const COUNT_MAX = Number(countInput.max);
 
+const RING_BORDER_COLOR = "rgba(238, 240, 244, 0.75)";
+const RING_BORDER_WIDTH = 2;
+
 const wheelCtx = wheelCanvas.getContext("2d")!;
 const wheelRadius = wheelCanvas.width / 2;
+
+const hueRingCtx = hueRingCanvas.getContext("2d")!;
+const hueRingCenter = hueRingCanvas.width / 2;
+const hueRingWidth = 22;
+const hueRingOuterRadius = hueRingCenter;
+const hueRingInnerRadius = hueRingOuterRadius - hueRingWidth;
+const hueRingMidRadius = (hueRingOuterRadius + hueRingInnerRadius) / 2;
+
+function drawHueRing(): void {
+  const image = hueRingCtx.createImageData(hueRingCanvas.width, hueRingCanvas.height);
+  const cx = hueRingCenter;
+  const cy = hueRingCenter;
+
+  for (let y = 0; y < hueRingCanvas.height; y++) {
+    for (let x = 0; x < hueRingCanvas.width; x++) {
+      const dx = x - cx;
+      const dy = y - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const idx = (y * hueRingCanvas.width + x) * 4;
+
+      if (dist > hueRingOuterRadius || dist < hueRingInnerRadius) {
+        image.data[idx + 3] = 0;
+        continue;
+      }
+
+      const angle = normalizeHue((Math.atan2(dy, dx) * 180) / Math.PI);
+      const { r, g, b } = hslToRgb({ h: angle, s: 100, l: 50 });
+
+      image.data[idx] = r;
+      image.data[idx + 1] = g;
+      image.data[idx + 2] = b;
+      image.data[idx + 3] = 255;
+    }
+  }
+
+  hueRingCtx.putImageData(image, 0, 0);
+
+  hueRingCtx.strokeStyle = RING_BORDER_COLOR;
+  hueRingCtx.lineWidth = RING_BORDER_WIDTH;
+  hueRingCtx.beginPath();
+  hueRingCtx.arc(hueRingCenter, hueRingCenter, hueRingOuterRadius - RING_BORDER_WIDTH / 2, 0, Math.PI * 2);
+  hueRingCtx.stroke();
+  hueRingCtx.beginPath();
+  hueRingCtx.arc(hueRingCenter, hueRingCenter, hueRingInnerRadius + RING_BORDER_WIDTH / 2, 0, Math.PI * 2);
+  hueRingCtx.stroke();
+}
 
 function drawWheel(): void {
   const image = wheelCtx.createImageData(wheelCanvas.width, wheelCanvas.height);
@@ -144,6 +204,12 @@ function drawWheel(): void {
   }
 
   wheelCtx.putImageData(image, 0, 0);
+
+  wheelCtx.strokeStyle = RING_BORDER_COLOR;
+  wheelCtx.lineWidth = RING_BORDER_WIDTH;
+  wheelCtx.beginPath();
+  wheelCtx.arc(wheelRadius, wheelRadius, wheelRadius - RING_BORDER_WIDTH / 2, 0, Math.PI * 2);
+  wheelCtx.stroke();
 }
 
 function currentHsl(): Hsl {
@@ -163,13 +229,23 @@ function setFromRgb(r: number, g: number, b: number, alpha = state.a): void {
   setFromHsl(hsl, alpha);
 }
 
+const wheelOffset = (hueRingCanvas.width - wheelCanvas.width) / 2;
+
 function updateWheelHandle(): void {
   const angleRad = (state.h * Math.PI) / 180;
   const radius = (state.s / 100) * wheelRadius;
-  const x = wheelRadius + radius * Math.cos(angleRad);
-  const y = wheelRadius + radius * Math.sin(angleRad);
+  const x = wheelOffset + wheelRadius + radius * Math.cos(angleRad);
+  const y = wheelOffset + wheelRadius + radius * Math.sin(angleRad);
   wheelHandle.style.left = `${x}px`;
   wheelHandle.style.top = `${y}px`;
+}
+
+function updateRingHandle(): void {
+  const angleRad = (state.h * Math.PI) / 180;
+  const x = hueRingCenter + hueRingMidRadius * Math.cos(angleRad);
+  const y = hueRingCenter + hueRingMidRadius * Math.sin(angleRad);
+  ringHandle.style.left = `${x}px`;
+  ringHandle.style.top = `${y}px`;
 }
 
 function setHclGamutWarning(active: boolean): void {
@@ -198,6 +274,11 @@ function render(): void {
   fieldHslS.value = String(Math.round(state.s));
   fieldHslL.value = String(Math.round(state.l));
 
+  saturationInput.value = String(Math.round(state.s));
+  const satRgbLow = rgbToHex(hslToRgb({ h: state.h, s: 0, l: state.l }));
+  const satRgbHigh = rgbToHex(hslToRgb({ h: state.h, s: 100, l: state.l }));
+  saturationInput.style.background = `linear-gradient(to top, ${satRgbLow}, ${satRgbHigh})`;
+
   lightnessInput.value = String(Math.round(state.l));
   const hueRgbLow = rgbToHex(hslToRgb({ h: state.h, s: state.s, l: 0 }));
   const hueRgbMid = rgbToHex(hslToRgb({ h: state.h, s: state.s, l: 50 }));
@@ -207,6 +288,7 @@ function render(): void {
   previewFill.style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${state.a})`;
 
   updateWheelHandle();
+  updateRingHandle();
   renderPalette();
 }
 
@@ -306,6 +388,34 @@ wheelCanvas.addEventListener("pointerup", () => {
   dragging = false;
 });
 
+function pickFromRingEvent(event: PointerEvent): void {
+  const rect = hueRingCanvas.getBoundingClientRect();
+  const scaleX = hueRingCanvas.width / rect.width;
+  const scaleY = hueRingCanvas.height / rect.height;
+  const x = (event.clientX - rect.left) * scaleX - hueRingCenter;
+  const y = (event.clientY - rect.top) * scaleY - hueRingCenter;
+
+  const angle = normalizeHue((Math.atan2(y, x) * 180) / Math.PI);
+  setFromHsl({ h: angle, s: state.s, l: state.l });
+}
+
+let draggingRing = false;
+hueRingCanvas.addEventListener("pointerdown", (event) => {
+  draggingRing = true;
+  hueRingCanvas.setPointerCapture(event.pointerId);
+  pickFromRingEvent(event);
+});
+hueRingCanvas.addEventListener("pointermove", (event) => {
+  if (draggingRing) pickFromRingEvent(event);
+});
+hueRingCanvas.addEventListener("pointerup", () => {
+  draggingRing = false;
+});
+
+saturationInput.addEventListener("input", () => {
+  setFromHsl({ h: state.h, s: Number(saturationInput.value), l: state.l });
+});
+
 lightnessInput.addEventListener("input", () => {
   setFromHsl({ h: state.h, s: state.s, l: Number(lightnessInput.value) });
 });
@@ -390,6 +500,7 @@ countNumberInput.addEventListener("change", () => {
   applyCount(Number.isNaN(value) ? state.count : value);
 });
 
+drawHueRing();
 drawWheel();
 applyCount(state.count);
 render();
